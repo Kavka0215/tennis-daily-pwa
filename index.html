@@ -260,6 +260,8 @@ main{max-width:1180px;margin:0 auto;padding:18px 14px 110px}
 .tgcol:last-child{border-right:0}
 .tgcol .hr{height:44px;border-bottom:1px solid #F0EADF}
 .tgcol.weekend{background:#FCFAF5}
+.tgcol.today{background:#FFF8EF}
+.tghead .d.today{background:#FFF8EF}
 .tghead{display:flex;position:sticky;top:0;z-index:4;background:var(--sand-2);border-bottom:1px solid var(--line)}
 .tghead .pad{width:52px;flex:none;border-right:1px solid var(--line)}
 .tghead .d{flex:1;min-width:92px;text-align:center;padding:7px 2px;border-right:1px solid var(--line)}
@@ -277,6 +279,19 @@ main{max-width:1180px;margin:0 auto;padding:18px 14px 110px}
 .ev.planned{background:#fff!important;border:1px dashed;border-left-width:3px;border-left-style:solid}
 .nowline{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--clay);z-index:5;pointer-events:none}
 .nowline::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--clay)}
+
+/* phones: squeeze the whole week in rather than scrolling sideways through it */
+@media(max-width:640px){
+  .tgtimes{width:34px} .tghead .pad{width:34px}
+  .tgtimes .hr{font-size:9px;padding-right:3px}
+  .tgcol{min-width:0} .tghead .d{min-width:0;padding:6px 0}
+  .tghead .dw{font-size:8.5px;letter-spacing:.2px}
+  .tghead .dd{font-size:14px}
+  .tghead .d.today .dd{width:21px;height:21px;line-height:21px;font-size:12px}
+  .ev{padding:2px 3px;border-left-width:2px;border-radius:5px}
+  .ev b{font-size:9.5px}
+  .ev s{display:none}
+}
 
 /* ---------- fab ---------- */
 .fab{
@@ -420,6 +435,7 @@ const catOf = id => CAT[id] || {id:'other',name:'Other',short:'Other',color:'#8A
    Storage
    ============================================================ */
 const SKEY='tennisdaily.sessions.v1', PKEY='tennisdaily.prefs.v1';
+const HOME_COURT='PUTEAUX CLUB';   // pre-filled location; still editable per session
 
 function loadSessions(){
   try{ const a=JSON.parse(localStorage.getItem(SKEY)||'[]'); return Array.isArray(a)?a:[]; }
@@ -505,7 +521,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
    ============================================================ */
 let sessions = loadSessions();
 let prefs    = loadPrefs();
-if(!prefs.calView) prefs.calView = window.innerWidth<720 ? 'day' : 'week';
+if(prefs.calView!=='month') prefs.calView='week';   // week is the default; day view is gone
 let cal = { view: prefs.calView, anchor: today() };
 let period = { anchor: today() };
 let yearPage = null;       // which 12-month block of dots to show; null = the current one
@@ -780,13 +796,11 @@ function renderCal(){
   const v=cal.view;
   let title;
   if(v==='month'){ const d=parseD(cal.anchor); title=`${MON[d.getMonth()]} ${d.getFullYear()}`; }
-  else if(v==='day'){ const d=parseD(cal.anchor); title=`${DOW[dowMon(cal.anchor)]} ${d.getDate()} ${MONS[d.getMonth()]} ${d.getFullYear()}`; }
   else { const a=weekStart(cal.anchor), b=addDays(a,6), da=parseD(a), dbb=parseD(b);
     title=`${da.getDate()} ${MONS[da.getMonth()]} – ${dbb.getDate()} ${MONS[dbb.getMonth()]} ${dbb.getFullYear()}`; }
 
   // hours visible in the current range
   const rng = v==='month' ? [cal.anchor.slice(0,7)+'-01', fmtD(new Date(parseD(cal.anchor).getFullYear(),parseD(cal.anchor).getMonth()+1,0))]
-            : v==='day'   ? [cal.anchor,cal.anchor]
             : [weekStart(cal.anchor), addDays(weekStart(cal.anchor),6)];
   const rm=inRange(rng[0],rng[1]).filter(s=>s.status==='done').reduce((a,s)=>a+durMin(s),0);
 
@@ -799,12 +813,11 @@ function renderCal(){
       <div class="brk"></div>
       <span style="font-size:12.5px;color:var(--muted)">${dec(rm).toFixed(1)}h done</span>
       <div class="seg">
-        <button data-act="view" data-view="day"   aria-pressed="${v==='day'}">Day</button>
         <button data-act="view" data-view="week"  aria-pressed="${v==='week'}">Week</button>
         <button data-act="view" data-view="month" aria-pressed="${v==='month'}">Month</button>
       </div>
     </div>
-    <div class="card flush">${ v==='month' ? monthView() : timeGrid(v==='day'?[cal.anchor]:Array.from({length:7},(_,i)=>addDays(weekStart(cal.anchor),i))) }</div>
+    <div class="card flush">${ v==='month' ? monthView() : timeGrid(Array.from({length:7},(_,i)=>addDays(weekStart(cal.anchor),i))) }</div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:2px 4px">
       ${CATS.map(c=>`<span style="display:inline-flex;align-items:center;gap:6px"><i class="dot" style="background:${c.color}"></i>${c.name}</span>`).join('')}
       <span style="display:inline-flex;align-items:center;gap:6px"><i class="dot" style="background:#fff;border:1px dashed #999"></i>Planned (not yet done)</span>
@@ -877,7 +890,7 @@ function timeGrid(dates){
       const n=new Date(), nm=n.getHours()*60+n.getMinutes();
       if(nm>=DAY_START*60 && nm<=(DAY_END+1)*60) now=`<div class="nowline" style="top:${(nm-DAY_START*60)/60*HOUR_H}px"></div>`;
     }
-    return `<div class="tgcol ${wknd?'weekend':''}" data-act="slot" data-date="${d}">${bg}${evs}${now}</div>`;
+    return `<div class="tgcol ${wknd?'weekend':''} ${d===today()?'today':''}" data-act="slot" data-date="${d}">${bg}${evs}${now}</div>`;
   }).join('');
 
   return head+`<div class="tgwrap">${times}<div class="tgcols">${cols}</div></div>`;
@@ -911,8 +924,8 @@ function monthView(){
 function newDraft(date,start){
   const n=new Date();
   const st = start || fromMin(Math.min(21*60, Math.ceil((n.getHours()*60+n.getMinutes())/30)*30));
-  return { id:uid(), date:date||today(), start:st, end:fromMin(Math.min(23*60+59,toMin(st)+90)),
-           category:'drills', title:'', location:'', partner:'', notes:'', photos:[],
+  return { id:uid(), date:date||today(), start:st, end:fromMin(Math.min(23*60+59,toMin(st)+60)),
+           category:'drills', title:'', location:HOME_COURT, partner:'', notes:'', photos:[],
            status:(date||today())<=today()?'done':'planned', createdAt:Date.now() };
 }
 
@@ -944,13 +957,13 @@ function paintEditor(){
       <label class="f"><span>End</span><input class="inp" type="time" id="f_end" value="${s.end}"></label>
     </div>
     <div class="quick">
-      ${[45,60,90,120,150].map(m=>`<button type="button" data-act="dur" data-m="${m}">${hrsTxt(m)}</button>`).join('')}
+      ${[60,90,120,150].map(m=>`<button type="button" data-act="dur" data-m="${m}">${hrsTxt(m)}</button>`).join('')}
     </div>
     <div class="durnote">Duration <b id="durOut">${hrsTxt(durMin(s))}</b></div>
 
     <div style="height:14px"></div>
     <div class="row2">
-      <label class="f"><span>Location / court</span><input class="inp" id="f_loc" value="${esc(s.location)}" placeholder="Court 3, Tennis Club"></label>
+      <label class="f"><span>Location / court</span><input class="inp" id="f_loc" value="${esc(s.location)}" placeholder="${esc(HOME_COURT)}"></label>
       <label class="f"><span>Partner / coach</span><input class="inp" id="f_partner" value="${esc(s.partner)}" placeholder="optional"></label>
     </div>
 
@@ -982,8 +995,9 @@ function paintEditor(){
     document.getElementById(id).addEventListener('change',e=>{
       const k={f_date:'date',f_start:'start',f_end:'end'}[id];
       draft[k]=e.target.value;
-      if(k==='start' && toMin(draft.end)<=toMin(draft.start)) {
-        draft.end=fromMin(Math.min(1439,toMin(draft.start)+90));
+      // picking a start always re-sets the end to one hour later, the common case
+      if(k==='start'){
+        draft.end=fromMin(Math.min(1439,toMin(draft.start)+60));
         document.getElementById('f_end').value=draft.end;
       }
       document.getElementById('durOut').textContent=hrsTxt(durMin(draft));
@@ -1102,7 +1116,7 @@ document.addEventListener('click', async e=>{
     case 'slot': {
       if(e.target.closest('.ev')||e.target.closest('.mev')) break;
       const date=t.dataset.date;
-      if(t.dataset.month){ cal.view='day'; cal.anchor=date; prefs.calView='day'; savePrefs(); renderCal(); break; }
+      if(t.dataset.month){ cal.view='week'; cal.anchor=date; prefs.calView='week'; savePrefs(); renderCal(); break; }
       const rect=t.getBoundingClientRect();
       const mins=DAY_START*60 + Math.round(((e.clientY-rect.top)/HOUR_H*60)/30)*30;
       openEditor(newDraft(date, fromMin(Math.max(0,Math.min(1410,mins)))), true);
@@ -1129,9 +1143,7 @@ document.addEventListener('click', async e=>{
     case 'today': cal.anchor=today(); renderCal(); break;
     case 'prev': case 'next': {
       const k=act==='prev'?-1:1;
-      cal.anchor = cal.view==='month' ? addMonths(cal.anchor,k)
-                 : cal.view==='day'   ? addDays(cal.anchor,k)
-                 : addDays(cal.anchor,7*k);
+      cal.anchor = cal.view==='month' ? addMonths(cal.anchor,k) : addDays(cal.anchor,7*k);
       renderCal(); break; }
 
     /* ---- editor ---- */
