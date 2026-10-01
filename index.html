@@ -237,6 +237,7 @@ main{max-width:1180px;margin:0 auto;padding:18px 14px 110px}
 @media(max-width:700px){ .calbar .brk{flex-basis:100%;height:0} }
 .navbtn{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--white);line-height:1;font-size:14px}
 .navbtn:hover{background:var(--sand-2)}
+.navbtn[disabled]{opacity:.35;pointer-events:none}
 .calttl{font-family:var(--serif);font-size:18px;font-weight:600;min-width:150px}
 
 .monthgrid{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
@@ -507,6 +508,7 @@ let prefs    = loadPrefs();
 if(!prefs.calView) prefs.calView = window.innerWidth<720 ? 'day' : 'week';
 let cal = { view: prefs.calView, anchor: today() };
 let period = { anchor: today() };
+let yearPage = null;       // which 12-month block of dots to show; null = the current one
 let draft = null;          // session being edited in the dialog
 
 const done    = () => sessions.filter(s=>s.status==='done');
@@ -718,11 +720,22 @@ function periodOverview(){
   </div>`;
 }
 
-/* ---- the training year as 365 dots ---- */
+/* ---- a training year as 365 dots; rolls into year 2, 3, … via < > ---- */
+function monthsApart(a,b){
+  const x=parseD(a), y=parseD(b);
+  return (y.getFullYear()-x.getFullYear())*12 + (y.getMonth()-x.getMonth());
+}
 function yearDots(){
   const trained=new Set(done().map(s=>s.date));
   const firstS = sessions.length ? sessions.map(s=>s.date).sort()[0] : today();
-  const startMonth = firstS.slice(0,7)+'-01';
+  const origin = firstS.slice(0,7)+'-01';            // month the programme began
+
+  // how many whole 12-month blocks have gone by since the start
+  const curPage = Math.max(0, Math.floor(monthsApart(origin, today().slice(0,7)+'-01')/12));
+  const page = yearPage==null ? curPage : Math.min(Math.max(0,yearPage), curPage);
+  yearPage = page;                                   // normalised, so < > can just step it
+
+  const startMonth = addMonths(origin, page*12);
   let on=0, elapsed=0, months='';
 
   for(let i=0;i<12;i++){
@@ -739,10 +752,15 @@ function yearDots(){
     months+=`<div class="ymon"><div class="ymlab">${MONS[d.getMonth()]}${(i===0||d.getMonth()===0)?` <em>'${String(d.getFullYear()).slice(2)}</em>`:''}</div>
       <div class="ydots">${dots}</div></div>`;
   }
-  const endM=addMonths(startMonth,11), ed=parseD(endM);
+  const sd=parseD(startMonth), ed=parseD(addMonths(startMonth,11));
   return `<div class="card">
-    <div class="card-h"><h2>The year on court</h2><div class="spacer"></div>
-      <div class="sub">${MONS[parseD(startMonth).getMonth()]} ${parseD(startMonth).getFullYear()} – ${MONS[ed.getMonth()]} ${ed.getFullYear()}</div></div>
+    <div class="card-h"><h2>Year ${page+1} on court</h2><div class="spacer"></div>
+      <div class="sub">${MONS[sd.getMonth()]} ${sd.getFullYear()} – ${MONS[ed.getMonth()]} ${ed.getFullYear()}</div></div>
+    ${curPage ? `<div class="pnav" style="margin-bottom:16px">
+      <button class="navbtn" data-act="year-prev" ${page===0?'disabled':''} aria-label="Previous year">&#8249;</button>
+      <button class="navbtn" data-act="year-next" ${page===curPage?'disabled':''} aria-label="Next year">&#8250;</button>
+      ${page===curPage?'':`<button class="linkbtn" data-act="year-now">Back to this year</button>`}
+    </div>` : ''}
     <div class="ygrid">${months}</div>
     <div class="ylegend">
       <span><i class="on"></i> trained</span>
@@ -1102,6 +1120,10 @@ document.addEventListener('click', async e=>{
       const k=act==='period-prev'?-1:1;
       period.anchor = prefs.period==='week' ? addDays(period.anchor,7*k) : addMonths(period.anchor,k);
       renderDash(); break; }
+
+    case 'year-now':  yearPage=null; renderDash(); break;
+    case 'year-prev': yearPage=Math.max(0,yearPage-1); renderDash(); break;
+    case 'year-next': yearPage=yearPage+1; renderDash(); break;
 
     case 'view': cal.view=t.dataset.view; prefs.calView=cal.view; savePrefs(); renderCal(); break;
     case 'today': cal.anchor=today(); renderCal(); break;
