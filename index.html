@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Tennis Daily">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230E3B2A'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='%23C4552F' stroke-width='4'/%3E%3Cpath d='M20 21c7 6 7 16 0 22M44 21c-7 6-7 16 0 22' fill='none' stroke='%23C4552F' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
 
 <style>
 /* ---------- Roland-Garros inspired palette ---------- */
@@ -70,7 +70,7 @@ input,select,textarea{font:inherit;color:inherit}
 }
 .topbar-row{display:flex;align-items:center;gap:12px;max-width:1180px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-size:19px;letter-spacing:.2px;font-weight:600;white-space:nowrap}
-.brand .ball{width:17px;height:17px;border-radius:50%;background:var(--clay);box-shadow:inset 0 0 0 2px rgba(255,255,255,.35);flex:none}
+.brand .ball{width:23px;height:23px;flex:none;display:block}
 .spacer{flex:1}
 .icon-btn{
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);
@@ -136,8 +136,6 @@ main{max-width:1180px;margin:0 auto;padding:18px 14px 110px}
 .catrow .nm{flex:1;font-size:14px;font-weight:500}
 .catrow .pct{font-size:12px;color:var(--muted);width:40px;text-align:right}
 .catrow .hh{font-family:var(--serif);font-size:15.5px;font-weight:600;width:72px;text-align:right}
-.catrow .cnt{font-size:11.5px;color:var(--muted);width:62px;text-align:right}
-@media(max-width:520px){ .catrow .cnt{display:none} }
 
 /* ---------- segmented ---------- */
 .seg{display:inline-flex;background:var(--sand-2);border-radius:9px;padding:3px;gap:2px}
@@ -198,8 +196,26 @@ main{max-width:1180px;margin:0 auto;padding:18px 14px 110px}
 .tick{border:1px solid var(--line);background:var(--white);border-radius:9px;width:34px;height:34px;flex:none;font-size:15px;line-height:1;color:var(--muted)}
 .tick:hover{border-color:var(--ok);color:var(--ok)}
 .tick.on{background:var(--ok);border-color:var(--ok);color:#fff}
-.empty{text-align:center;padding:22px 12px;color:var(--muted);font-size:13.5px}
-.empty button{margin-top:11px}
+
+/* ---------- "Up next": today + tomorrow in one card ---------- */
+.upday{padding-top:14px;margin-top:14px;border-top:1px solid var(--line)}
+.upday:first-of-type{padding-top:0;margin-top:0;border-top:0}
+.upday-h{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+.upday-h b{font-family:var(--serif);font-size:15.5px;font-weight:600}
+.upday-h span{font-size:12.5px;color:var(--muted)}
+.upday-h .spacer{flex:1}
+.addbtn{border:1px solid var(--line);background:var(--white);border-radius:9px;width:30px;height:30px;
+  flex:none;font-size:17px;line-height:1;color:var(--muted);align-self:center}
+.addbtn:hover{border-color:var(--clay);color:var(--clay)}
+.upadd{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px;
+  border:1px dashed var(--line);border-radius:11px;background:var(--sand);color:inherit}
+.upadd:hover{border-color:var(--clay);background:#FBF7EF}
+.upadd-ic{flex:none;width:36px;height:36px;border-radius:9px;background:var(--sand-2);
+  color:var(--green-2);font-style:normal;font-size:15px;display:grid;place-items:center}
+.upadd span{flex:1;min-width:0;display:block}
+.upadd b{display:block;font-size:14px;font-weight:600}
+.upadd em{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+.upadd-plus{flex:none;font-style:normal;font-size:19px;line-height:1;color:var(--clay)}
 .linkbtn{background:none;border:0;color:var(--clay);font-weight:600;font-size:13px;padding:0;text-decoration:underline;text-underline-offset:3px}
 
 .btn{
@@ -334,7 +350,7 @@ textarea.inp{min-height:84px;resize:vertical;line-height:1.45}
 
 <header class="topbar">
   <div class="topbar-row">
-    <div class="brand"><i class="ball"></i>Tennis Daily</div>
+    <div class="brand"><img class="ball" src="logo.svg" alt="">Tennis Daily</div>
     <div class="spacer"></div>
     <button class="icon-btn" data-act="menu">Data</button>
   </div>
@@ -521,18 +537,6 @@ function renderDash(){
   const ws=weekStart(today());
   const weekMin=D.filter(s=>s.date>=ws && s.date<=addDays(ws,6)).reduce((a,s)=>a+durMin(s),0);
 
-  // weeks elapsed since first session -> average per week
-  let avgWeek=0;
-  if(first){
-    const wk=Math.max(1, Math.round((parseD(today())-parseD(weekStart(first)))/6048e5)+1);
-    avgWeek=totalMin/wk;
-  }
-  // streak: consecutive weeks (ending this week or last) with >=1 completed session
-  let streak=0;
-  { const wset=new Set(D.map(s=>weekStart(s.date)));
-    let w = wset.has(ws) ? ws : addDays(ws,-7);
-    if(wset.has(w)){ while(wset.has(w)){ streak++; w=addDays(w,-7); } } }
-
   el.innerHTML = `
   <div class="card hero">
     <div class="hero-main">
@@ -541,25 +545,18 @@ function renderDash(){
       <div class="hero-since">${first ? `Since ${parseD(first).getDate()} ${MON[parseD(first).getMonth()]} ${parseD(first).getFullYear()} &middot; ${Math.max(1,Math.round((parseD(today())-parseD(first))/864e5))} days in` : 'No sessions logged yet'}</div>
     </div>
     <div class="hero-stats">
-      <div><b>${D.length}</b><span>Sessions</span></div>
       <div><b>${days.size}</b><span>Days on court</span></div>
       <div><b>${dec(weekMin).toFixed(1)}h</b><span>This week</span></div>
-      <div><b>${dec(avgWeek).toFixed(1)}h</b><span>Avg / week</span></div>
-      <div><b>${streak}</b><span>Week streak</span></div>
     </div>
   </div>
 
   ${overdueHTML()}
 
-  <div class="grid two">
-    <div class="card">
-      <div class="card-h"><h2>Today</h2><div class="spacer"></div><div class="sub">${niceDate(today())}</div></div>
-      ${planListHTML(today(),'Nothing planned for today.')}
-    </div>
-    <div class="card">
-      <div class="card-h"><h2>Tomorrow</h2><div class="spacer"></div><div class="sub">${niceDate(addDays(today(),1))}</div></div>
-      ${planListHTML(addDays(today(),1),'Nothing planned for tomorrow.')}
-    </div>
+  <div class="card">
+    <div class="card-h"><h2>Up next</h2><div class="spacer"></div>
+      <button class="linkbtn" data-act="tab" data-tab="cal">Open calendar</button></div>
+    ${upDayHTML('Today', today())}
+    ${upDayHTML('Tomorrow', addDays(today(),1))}
   </div>
 
   <div class="card">
@@ -593,7 +590,7 @@ function catBreakdownHTML(D,totalMin){
   const rows=CATS.map(c=>{
     const list=D.filter(s=>s.category===c.id);
     const m=list.reduce((a,s)=>a+durMin(s),0);
-    return {c, m, n:list.length, pct: totalMin? m/totalMin*100 : 0};
+    return {c, m, pct: totalMin? m/totalMin*100 : 0};
   });
   const mix=rows.filter(r=>r.m>0).map(r=>`<i style="width:${r.pct}%;background:${r.c.color}"></i>`).join('')
             || `<i style="width:100%;background:var(--sand-2)"></i>`;
@@ -601,17 +598,29 @@ function catBreakdownHTML(D,totalMin){
     <div class="catrow">
       <i class="dot" style="background:${r.c.color}"></i>
       <span class="nm">${r.c.name}</span>
-      <span class="cnt">${r.n} session${r.n===1?'':'s'}</span>
       <span class="pct">${r.pct?r.pct.toFixed(0)+'%':'—'}</span>
       <span class="hh">${dec(r.m).toFixed(1)}h</span>
     </div>`).join('');
 }
 
-function planListHTML(date, emptyMsg){
+/* one day inside the "Up next" card: heading + its sessions, or a tap-to-add row */
+function upDayHTML(label, date){
   const list=byDate(date);
-  if(!list.length) return `<div class="empty">${emptyMsg}<br>
-     <button class="btn ghost" data-act="new" data-date="${date}">Plan a session</button></div>`;
-  return list.map(s=>{
+  return `<div class="upday">
+    <div class="upday-h"><b>${label}</b><span>${niceDate(date)}</span><div class="spacer"></div>
+      <button class="addbtn" data-act="new" data-date="${date}" aria-label="Plan a session on ${label.toLowerCase()}">+</button></div>
+    ${list.length ? planListHTML(date) : `
+    <button class="upadd" data-act="new" data-date="${date}">
+      <i class="upadd-ic"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></i>
+      <span><b>Nothing planned</b><em>Add ${label.toLowerCase()}'s training</em></span>
+      <i class="upadd-plus">+</i>
+    </button>`}
+  </div>`;
+}
+
+function planListHTML(date){
+  return byDate(date).map(s=>{
     const c=catOf(s.category);
     const meta=[`${s.start}–${s.end}`, hrsTxt(durMin(s)), s.location, s.partner].filter(Boolean).join(' &middot; ');
     return `<div class="plan-item">
@@ -641,10 +650,10 @@ function periodLabel(anchor, mode){
   return `${da.getDate()} ${MONS[da.getMonth()]} – ${dbb.getDate()} ${MONS[dbb.getMonth()]} ${dbb.getFullYear()}`;
 }
 function sumRange(a,b){
-  const per={}; let total=0, n=0; const days=new Set();
+  const per={}; let total=0; const days=new Set();
   done().filter(s=>s.date>=a && s.date<=b).forEach(s=>{
-    const m=durMin(s); per[s.category]=(per[s.category]||0)+m; total+=m; n++; days.add(s.date); });
-  return {per,total,n,days:days.size};
+    const m=durMin(s); per[s.category]=(per[s.category]||0)+m; total+=m; days.add(s.date); });
+  return {per,total,days:days.size};
 }
 
 function periodOverview(){
@@ -699,7 +708,6 @@ function periodOverview(){
 
     <div class="pstats">
       <div><b>${dec(cur.total).toFixed(1)}<small>h</small></b><span>Total</span></div>
-      <div><b>${cur.n}</b><span>Sessions</span></div>
       <div><b>${cur.days}</b><span>Days trained</span></div>
       <div><b class="${delta>0?'up':delta<0?'down':''}">${delta>0?'+':''}${dec(delta).toFixed(1)}<small>h</small></b>
            <span>vs previous ${mode}</span></div>

@@ -4,7 +4,7 @@
    fallback — which matters here because the club has patchy signal and the
    whole point is being able to log a session courtside. */
 const CACHE = "tennis-daily-v1";
-const SHELL = ["./", "./index.html", "./manifest.webmanifest",
+const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./logo.svg",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon-180.png"];
 
 self.addEventListener("install", e => {

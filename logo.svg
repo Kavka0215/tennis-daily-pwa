@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Tennis Daily</title>
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="#155d49"/>
+  <circle cx="32" cy="32" r="22" fill="#f8f3e6"/>
+  <path d="M21 12c-9 7-11 14-4 20 7 6 7 13 0 20M43 12c9 7 11 14 4 20-7 6-7 13 0 20" fill="none" stroke="#c96543" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+</svg>
